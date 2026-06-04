@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Des maux dans des mots - Charly M</title>
+    <meta name="description" content="Des maux dans des mots : repertoire des titres de Charly M, ecoute, commentaires et avis des auditeurs.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,700;1,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css?v=20260604">
+</head>
+<body>
+    <div class="ambient-lights" aria-hidden="true">
+        <span class="light light-a"></span>
+        <span class="light light-b"></span>
+        <span class="light light-c"></span>
+    </div>
+
+    <header class="hero">
+        <div class="container hero-inner">
+            <p class="brand">Charly M</p>
+            <h1>Des maux dans des mots</h1>
+            <p class="tagline">Ecoutez, partagez vos ressentis, et faites vivre les morceaux.</p>
+            <a href="#chansons-section" class="hero-cta">Ecouter maintenant</a>
+        </div>
+    </header>
+
+    <nav class="site-nav" aria-label="Navigation principale">
+        <div class="container nav-inner">
+            <div class="nav-links">
+                <a href="#chansons-section">Chansons</a>
+                <a href="#avis-section">Avis</a>
+                <a href="#contact-section">Contact</a>
+            </div>
+            <button id="btn-artiste" class="btn-artiste-nav" type="button" aria-label="Espace artiste" title="Espace artiste"></button>
+        </div>
+    </nav>
+
+    <main class="container">
+        <!-- Section Upload Artiste - masquee par defaut -->
+        <section id="upload-section" class="panel panel-upload hidden">
+            <div class="upload-header">
+                <h2>Espace Artiste</h2>
+                <button id="btn-deconnecter" class="btn-deconnecter" type="button">Se deconnecter</button>
+            </div>
+            <p class="section-intro">Ajoutez une nouvelle chanson avec un lien audio ou un fichier local (limite recommandee : moins de 8 Mo).</p>
+            <form id="form-chanson" class="form-grid">
+                <input type="text" id="titre-chanson" placeholder="Titre de la chanson" required>
+                <input type="text" id="artiste-chanson" placeholder="Artiste" value="Charly M" readonly>
+                <input type="text" id="genre-chanson" placeholder="Genre" required>
+                <input type="number" id="annee-chanson" placeholder="Annee" min="1900" max="2100" required>
+                <input type="url" id="url-audio" placeholder="Lien audio direct (https://...)" aria-label="Lien audio direct">
+                <div class="file-input-wrap">
+                    <label for="fichier-audio">Ou importer un fichier audio</label>
+                    <input type="file" id="fichier-audio" accept="audio/*" aria-label="Fichier audio">
+                </div>
+                <button type="submit">Publier la chanson</button>
+            </form>
+        </section>
+
+        <!-- Section Chansons -->
+        <section id="chansons-section" class="panel">
+            <h2>Mes Chansons</h2>
+            <div id="chansons-liste" class="chansons-grid"></div>
+        </section>
+
+        <!-- Section Avis -->
+        <section id="avis-section" class="panel">
+            <h2>Vos Avis</h2>
+            <div class="avis-form">
+                <h3>Laissez votre avis</h3>
+                <form id="form-avis">
+                    <input type="text" id="nom-avis" placeholder="Votre nom (optionnel)">
+                    <select id="chanson-avis" aria-label="Choisir une chanson" required>
+                        <option value="">Choisir une chanson</option>
+                    </select>
+                    <select id="note-avis" aria-label="Note de l'avis" required>
+                        <option value="">Note</option>
+                        <option value="5">&#11088;&#11088;&#11088;&#11088;&#11088; (5/5)</option>
+                        <option value="4">&#11088;&#11088;&#11088;&#11088; (4/5)</option>
+                        <option value="3">&#11088;&#11088;&#11088; (3/5)</option>
+                        <option value="2">&#11088;&#11088; (2/5)</option>
+                        <option value="1">&#11088; (1/5)</option>
+                    </select>
+                    <textarea id="commentaire-avis" placeholder="Votre commentaire" rows="4" required></textarea>
+                    <button type="submit">Envoyer l'avis</button>
+                </form>
+            </div>
+            <div class="avis-filter" id="avis-filter-wrap">
+                <label for="filtre-avis">Filtrer :</label>
+                <select id="filtre-avis" aria-label="Filtrer les avis par chanson">
+                    <option value="">Toutes les chansons</option>
+                </select>
+            </div>
+            <div id="avis-liste" class="avis-liste"></div>
+        </section>
+
+        <!-- Section Contact -->
+        <section id="contact-section" class="panel">
+            <h2>Me Contacter</h2>
+            <div class="contact-form">
+                <form id="form-contact">
+                    <input type="text" id="nom-contact" placeholder="Votre nom" required>
+                    <input type="email" id="email-contact" placeholder="Votre email" required>
+                    <input type="text" id="sujet-contact" placeholder="Sujet" required>
+                    <textarea id="message-contact" placeholder="Votre message" rows="6" required></textarea>
+                    <button type="submit">Envoyer par mail</button>
+                </form>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2026 Des maux dans des mots &mdash; Charly M. Tous droits réservés.</p>
+        </div>
+    </footer>
+
+    <!-- Modal confirmation suppression -->
+    <div id="modal-confirmer" class="modal-overlay" aria-hidden="true" role="alertdialog" aria-modal="true" aria-labelledby="confirmer-titre">
+        <div class="modal-box modal-confirmer-box">
+            <p class="modal-confirmer-icone" aria-hidden="true">&#x26A0;</p>
+            <h2 id="confirmer-titre">Confirmation</h2>
+            <p id="confirmer-message" class="modal-desc"></p>
+            <div class="confirmer-actions">
+                <button id="confirmer-non" type="button" class="confirmer-btn-annuler">Annuler</button>
+                <button id="confirmer-oui" type="button" class="confirmer-btn-danger">Supprimer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal authentification artiste -->
+    <div id="modal-artiste" class="modal-overlay" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="modal-titre">
+        <div class="modal-box">
+            <button class="modal-fermer" id="btn-fermer-modal" aria-label="Fermer" type="button">&#x2715;</button>
+            <h2 id="modal-titre">Espace Artiste</h2>
+            <p class="modal-desc">Accès réservé à Charly M.</p>
+            <form id="form-auth">
+                <input type="password" id="mdp-artiste" placeholder="Mot de passe" autocomplete="current-password" required>
+                <button type="submit">Accéder</button>
+            </form>
+            <p id="auth-erreur" class="auth-erreur" aria-live="polite"></p>
+        </div>
+    </div>
+
+    <div id="notification" class="notification" role="status" aria-live="polite"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>
