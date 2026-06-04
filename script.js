@@ -456,6 +456,7 @@ document.getElementById("form-auth").addEventListener("submit", e => {
         fermerModal();
         afficherSectionUpload();
         afficherChansons();
+        afficherAvis();
         afficherNotification("Bienvenue, Charly M !");
     } else {
         document.getElementById("auth-erreur").textContent = "Mot de passe incorrect.";
@@ -469,6 +470,7 @@ document.getElementById("btn-deconnecter").addEventListener("click", () => {
     sessionStorage.removeItem("artiste_auth");
     cacherSectionUpload();
     afficherChansons();
+    afficherAvis();
     afficherNotification("Deconnecte de l'espace artiste.");
 });
 
