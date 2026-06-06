@@ -285,7 +285,7 @@ function afficherChansons() {
         ` : '<p class="chanson-meta">Audio a venir...</p>';
 
         const btnSupprimer = estAuthentifie
-            ? `<button class="btn-supprimer" type="button" onclick="supprimerChanson(${Number(chanson.id)})">Supprimer</button>`
+            ? `<button class="btn-supprimer" type="button" data-action="supprimer-chanson" data-id="${chanson.id}">Supprimer</button>`
             : '';
 
         card.innerHTML = `
@@ -314,7 +314,13 @@ function mettreAJourNoteChanson(chansonId) {
 
 async function supprimerChanson(id) {
     if (!estAuthentifie) return;
-    if (!confirm("Supprimer cette chanson definitivement ?")) return;
+    const chanson = chansons.find(c => c.id === id);
+    const titre = chanson ? chanson.titre : "cette chanson";
+    const avisLies = avis.filter(a => String(a.chansonId) === String(id));
+    const infoAvis = avisLies.length
+        ? ` Cela supprimera aussi les ${avisLies.length} avis associe(s).`
+        : "";
+    if (!await confirmer(`Supprimer « ${titre} » definitvement ?${infoAvis}`)) return;
     try { await dbDelete(id); } catch {}
     chansons = chansons.filter(c => c.id !== id);
     avis = avis.filter(a => String(a.chansonId) !== String(id));
@@ -355,16 +361,16 @@ function afficherAvis() {
 
         const formReponseHtml = estAuthentifie ? `
             <div class="avis-actions-artiste">
-                <button class="btn-repondre" type="button" onclick="toggleReponseForm(${avisItem.id})">
+                <button class="btn-repondre" type="button" data-action="toggle-reponse" data-id="${avisItem.id}">
                     ${avisItem.reponse ? 'Modifier la reponse' : 'Repondre'}
                 </button>
-                <button class="btn-supprimer-avis" type="button" onclick="supprimerAvis(${avisItem.id})">Supprimer l'avis</button>
+                <button class="btn-supprimer-avis" type="button" data-action="supprimer-avis" data-id="${avisItem.id}">Supprimer l'avis</button>
             </div>
             <div class="reponse-form hidden" id="reponse-form-${avisItem.id}">
                 <textarea class="reponse-textarea" placeholder="Votre reponse..." rows="3">${avisItem.reponse ? echapper(avisItem.reponse.texte) : ''}</textarea>
                 <div class="reponse-actions">
-                    <button type="button" class="btn-publier-reponse" onclick="publierReponse(${avisItem.id})">Publier</button>
-                    ${avisItem.reponse ? `<button type="button" class="btn-supprimer-reponse" onclick="supprimerReponse(${avisItem.id})">Supprimer la reponse</button>` : ''}
+                    <button type="button" class="btn-publier-reponse" data-action="publier-reponse" data-id="${avisItem.id}">Publier</button>
+                    ${avisItem.reponse ? `<button type="button" class="btn-supprimer-reponse" data-action="supprimer-reponse" data-id="${avisItem.id}">Supprimer la reponse</button>` : ''}
                 </div>
             </div>` : '';
 
@@ -647,9 +653,9 @@ function publierReponse(avisId) {
     afficherNotification("Reponse publiee !");
 }
 
-function supprimerReponse(avisId) {
+async function supprimerReponse(avisId) {
     if (!estAuthentifie) return;
-    if (!confirm("Supprimer cette reponse ?")) return;
+    if (!await confirmer("Supprimer cette reponse ?")) return;
     const avisItem = avis.find(a => a.id === avisId);
     if (!avisItem) return;
     avisItem.reponse = null;
@@ -701,8 +707,31 @@ async function supprimerAvis(avisId) {
 
 
 // =====================================================================
+// Delegation d'evenements (les onclick inline sont bloques par CSP)
+// =====================================================================
+
+document.getElementById("chansons-liste").addEventListener("click", e => {
+    const btn = e.target.closest("[data-action]");
+    if (!btn) return;
+    if (btn.dataset.action === "supprimer-chanson") supprimerChanson(Number(btn.dataset.id));
+});
+
+document.getElementById("avis-liste").addEventListener("click", e => {
+    const btn = e.target.closest("[data-action]");
+    if (!btn) return;
+    const id = Number(btn.dataset.id);
+    switch (btn.dataset.action) {
+        case "toggle-reponse":    toggleReponseForm(id); break;
+        case "supprimer-avis":    supprimerAvis(id); break;
+        case "publier-reponse":   publierReponse(id); break;
+        case "supprimer-reponse": supprimerReponse(id); break;
+    }
+});
+
+// =====================================================================
 // Navigation active
 // =====================================================================
+
 
 const sectionObserver = new IntersectionObserver(entries => {
     entries.forEach(entry => {
