@@ -159,4 +159,6 @@ footer{padding:22px 0 32px;color:rgba(168,192,200,0.4);text-align:center;font-si
 
 .hidden{display:none !important}
 @media(max-width:760px){.hero{padding-top:36px}body::before{width:130px;top:44px}.form-grid{grid-template-columns:1fr}.hero h1{font-size:clamp(2rem,10vw,3.2rem)}.chansons-grid{grid-template-columns:1fr}}
+/* Honeypot anti-bot : hors ecran mais pas display:none (les bots detectent display:none) */
+.champ-honeypot{position:absolute;left:-9999px;top:-9999px;opacity:0;height:0;width:0;overflow:hidden;pointer-events:none;tabindex:-1}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation-duration:.01ms !important;transition-duration:.01ms !important}}

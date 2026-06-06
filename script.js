@@ -4,8 +4,7 @@ const EMAIL_CONTACT = "charlymichaut@gmail.com";
 // Formspree — remplace XXXXXXXX par ton ID de formulaire (formspree.io/f/XXXXXXXX)
 const FORMSPREE_ENDPOINT = "https://formspree.io/f/xojzqzgv";
 
-// Mot de passe artiste — a modifier ici
-const MOT_DE_PASSE_ARTISTE = "CharlyM2026!";
+const HASH_MOT_DE_PASSE_ARTISTE = "45fe8349f9ab7994e4e588c6dfbca0e24c1636b9d3eb6b78d3bb530f6ce67690";
 
 let estAuthentifie = sessionStorage.getItem("artiste_auth") === "1";
 
@@ -448,9 +447,17 @@ document.getElementById("btn-fermer-modal").addEventListener("click", fermerModa
 document.getElementById("modal-artiste").addEventListener("click", e => { if (e.target === document.getElementById("modal-artiste")) fermerModal(); });
 document.addEventListener("keydown", e => { if (e.key === "Escape") fermerModal(); });
 
-document.getElementById("form-auth").addEventListener("submit", e => {
+async function hacherMotDePasse(motDePasse) {
+    const data = new TextEncoder().encode(motDePasse);
+    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+    return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+document.getElementById("form-auth").addEventListener("submit", async e => {
     e.preventDefault();
-    if (document.getElementById("mdp-artiste").value === MOT_DE_PASSE_ARTISTE) {
+    const saisie = document.getElementById("mdp-artiste").value;
+    const hashSaisie = await hacherMotDePasse(saisie);
+    if (hashSaisie === HASH_MOT_DE_PASSE_ARTISTE) {
         estAuthentifie = true;
         sessionStorage.setItem("artiste_auth", "1");
         fermerModal();
@@ -524,8 +531,30 @@ document.getElementById("form-chanson").addEventListener("submit", async e => {
 // Formulaire avis
 // =====================================================================
 
+// Anti-spam : horodatage du rendu du formulaire avis
+let avisFormRenduA = Date.now();
+
 document.getElementById("form-avis").addEventListener("submit", e => {
     e.preventDefault();
+
+    // 1. Honeypot : si le champ cache est rempli, c'est un bot
+    const honeypot = e.target.querySelector("[name='hp_avis']");
+    if (honeypot && honeypot.value) return;
+
+    // 2. Timing : moins de 2 secondes = bot
+    if (Date.now() - avisFormRenduA < 2000) return;
+
+    // 3. Rate limiting : max 3 avis par 10 minutes
+    const RATE_KEY = "avis_rate_v1";
+    const maintenant = Date.now();
+    const historique = JSON.parse(localStorage.getItem(RATE_KEY) || "[]");
+    const recents = historique.filter(t => maintenant - t < 10 * 60 * 1000);
+    if (recents.length >= 3) {
+        afficherNotification("Trop d'avis en peu de temps. Reessayez dans quelques minutes.", "error");
+        return;
+    }
+    recents.push(maintenant);
+    localStorage.setItem(RATE_KEY, JSON.stringify(recents));
 
     const nom = document.getElementById("nom-avis").value.trim() || "Anonyme";
     const chansonId = document.getElementById("chanson-avis").value;
@@ -541,6 +570,7 @@ document.getElementById("form-avis").addEventListener("submit", e => {
     mettreAJourNoteChanson(chansonId);
     afficherAvis();
     e.target.reset();
+    avisFormRenduA = Date.now();
     afficherNotification("Merci pour ton avis !");
 });
 
@@ -552,6 +582,16 @@ document.getElementById("filtre-avis").addEventListener("change", () => afficher
 
 document.getElementById("form-contact").addEventListener("submit", async e => {
     e.preventDefault();
+
+    // Honeypot : si le champ cache est rempli, c'est un bot
+    const honeypot = e.target.querySelector("[name='_gotcha']");
+    if (honeypot && honeypot.value) {
+        // Simuler un succes pour ne pas alerter le bot
+        e.target.reset();
+        afficherNotification("Message envoyé ! Charly M vous répondra bientôt.");
+        return;
+    }
+
     const btn = e.target.querySelector("button[type=submit]");
     const nom = document.getElementById("nom-contact").value.trim();
     const email = document.getElementById("email-contact").value.trim();

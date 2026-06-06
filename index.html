@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://formspree.io; media-src 'self' data: blob: https:; img-src 'self' data:; object-src 'none';">
     <title>Des maux dans des mots - Charly M</title>
     <meta name="description" content="Des maux dans des mots : repertoire des titres de Charly M, ecoute, commentaires et avis des auditeurs.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -72,6 +73,8 @@
                 <h3>Laissez votre avis</h3>
                 <form id="form-avis">
                     <input type="text" id="nom-avis" placeholder="Votre nom (optionnel)">
+                    <!-- Honeypot anti-bot : ne pas remplir -->
+                    <input type="text" name="hp_avis" class="champ-honeypot" tabindex="-1" autocomplete="off" aria-hidden="true">
                     <select id="chanson-avis" aria-label="Choisir une chanson" required>
                         <option value="">Choisir une chanson</option>
                     </select>
@@ -101,6 +104,8 @@
             <h2>Me Contacter</h2>
             <div class="contact-form">
                 <form id="form-contact">
+                    <!-- Honeypot anti-bot : Formspree rejette si _gotcha est rempli -->
+                    <input type="text" name="_gotcha" class="champ-honeypot" tabindex="-1" autocomplete="off" aria-hidden="true">
                     <input type="text" id="nom-contact" placeholder="Votre nom" required>
                     <input type="email" id="email-contact" placeholder="Votre email" required>
                     <input type="text" id="sujet-contact" placeholder="Sujet" required>
