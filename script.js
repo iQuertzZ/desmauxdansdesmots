@@ -1,4 +1,4 @@
-// A modifier : adresse mail de contact
+// À modifier : adresse mail de contact
 const EMAIL_CONTACT = "charlymichaut@gmail.com";
 
 // Formspree — remplace XXXXXXXX par ton ID de formulaire (formspree.io/f/XXXXXXXX)
@@ -14,11 +14,6 @@ const SVG_LOCK   = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="1
 const SVG_UNLOCK = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>`;
 
 let playerAbortController = new AbortController();
-
-const chansonsParDefaut = [
-    { id: 1, titre: "Des maux dans des mots", artiste: "Charly M", genre: "Urbain", date: "2026", audioUrl: "" },
-    { id: 2, titre: "Nuit Lunaire", artiste: "Charly M", genre: "Pop urbaine", date: "2026", audioUrl: "" }
-];
 
 let chansons = [];
 let avis = [];
@@ -77,10 +72,17 @@ async function dbDelete(id) {
 }
 
 // =====================================================================
-// Chargement des donnees
+// Chargement des données
 // =====================================================================
 
 async function chargerDonnees() {
+    // Nettoyage unique : supprimer les chansons d'exemple (ids 1 et 2) si elles existent encore
+    if (!localStorage.getItem("migration_sans_defauts_v1")) {
+        try { await dbDelete(1); } catch {}
+        try { await dbDelete(2); } catch {}
+        localStorage.setItem("migration_sans_defauts_v1", "1");
+    }
+
     // Chansons depuis IndexedDB
     try {
         let dbChansons = await dbGetAll();
@@ -93,7 +95,7 @@ async function chargerDonnees() {
                     const parsed = JSON.parse(ancien);
                     if (Array.isArray(parsed) && parsed.length > 0) {
                         for (const c of parsed) {
-                            await dbPut({ id: c.id || Date.now() + Math.random(), titre: c.titre || "Titre inconnu", artiste: c.artiste || "Charly M", genre: c.genre || "Non renseigne", date: c.date || "2026", audioUrl: c.audioUrl || "" });
+                            await dbPut({ id: c.id || Date.now() + Math.random(), titre: c.titre || "Titre inconnu", artiste: c.artiste || "Charly M", genre: c.genre || "Non renseigné", date: c.date || "2026", audioUrl: c.audioUrl || "" });
                         }
                         dbChansons = await dbGetAll();
                         localStorage.removeItem("mes_chansons_v2");
@@ -106,14 +108,13 @@ async function chargerDonnees() {
         if (dbChansons.length > 0) {
             chansons = dbChansons.sort((a, b) => b.id - a.id);
         } else {
-            chansons = [...chansonsParDefaut];
-            for (const c of chansons) await dbPut(c);
+            chansons = [];
         }
     } catch {
-        chansons = [...chansonsParDefaut];
+        chansons = [];
     }
 
-    // Avis depuis localStorage (donnees legeres)
+    // Avis depuis localStorage (données légères)
     const avisStockes = localStorage.getItem(STORAGE_KEYS.avis) || localStorage.getItem("avis");
     if (avisStockes) {
         try {
@@ -131,7 +132,7 @@ async function chargerDonnees() {
         } catch { avis = []; }
     } else { avis = []; }
 
-    // Assure la compatibilite avec les anciens avis sans champ reponse
+    // Assure la compatibilité avec les anciens avis sans champ réponse
     avis = avis.map(a => ({ ...a, reponse: a.reponse || null }));
     sauvegarderAvis();
 }
@@ -140,7 +141,7 @@ function sauvegarderAvis() {
     try {
         localStorage.setItem(STORAGE_KEYS.avis, JSON.stringify(avis));
     } catch {
-        afficherNotification("Stockage local plein. Certains avis n'ont pas pu etre sauvegardes.", "error");
+        afficherNotification("Stockage local plein. Certains avis n'ont pas pu être sauvegardés.", "error");
     }
 }
 
@@ -282,7 +283,7 @@ function afficherChansons() {
                     <div class="player-times"><span class="player-cur">0:00</span><span class="player-dur">--:--</span></div>
                 </div>
             </div>
-        ` : '<p class="chanson-meta">Audio a venir...</p>';
+        ` : '<p class="chanson-meta">Audio à venir...</p>';
 
         const btnSupprimer = estAuthentifie
             ? `<button class="btn-supprimer" type="button" data-action="supprimer-chanson" data-id="${chanson.id}">Supprimer</button>`
@@ -318,9 +319,9 @@ async function supprimerChanson(id) {
     const titre = chanson ? chanson.titre : "cette chanson";
     const avisLies = avis.filter(a => String(a.chansonId) === String(id));
     const infoAvis = avisLies.length
-        ? ` Cela supprimera aussi les ${avisLies.length} avis associe(s).`
+        ? ` Cela supprimera aussi les ${avisLies.length} avis associé(s).`
         : "";
-    if (!await confirmer(`Supprimer « ${titre} » definitvement ?${infoAvis}`)) return;
+    if (!await confirmer(`Supprimer « ${titre} » définitivement ?${infoAvis}`)) return;
     try { await dbDelete(id); } catch {}
     chansons = chansons.filter(c => c.id !== id);
     avis = avis.filter(a => String(a.chansonId) !== String(id));
@@ -328,7 +329,7 @@ async function supprimerChanson(id) {
     afficherChansons();
     afficherAvis();
     mettreAJourSelectChansons();
-    afficherNotification("Chanson supprimee.");
+    afficherNotification("Chanson supprimée.");
 }
 
 // =====================================================================
@@ -343,7 +344,7 @@ function afficherAvis() {
     const avisAffiches = filtreId ? avis.filter(a => String(a.chansonId) === filtreId) : avis;
 
     if (!avisAffiches.length) {
-        liste.innerHTML = `<p class="chanson-meta">${filtreId ? "Aucun avis pour cette chanson." : "Aucun avis pour le moment. Soyez le premier a reagir."}</p>`;
+        liste.innerHTML = `<p class="chanson-meta">${filtreId ? "Aucun avis pour cette chanson." : "Aucun avis pour le moment. Soyez le premier à réagir."}</p>`;
         return;
     }
 
@@ -362,15 +363,15 @@ function afficherAvis() {
         const formReponseHtml = estAuthentifie ? `
             <div class="avis-actions-artiste">
                 <button class="btn-repondre" type="button" data-action="toggle-reponse" data-id="${avisItem.id}">
-                    ${avisItem.reponse ? 'Modifier la reponse' : 'Repondre'}
+                    ${avisItem.reponse ? 'Modifier la réponse' : 'Répondre'}
                 </button>
                 <button class="btn-supprimer-avis" type="button" data-action="supprimer-avis" data-id="${avisItem.id}">Supprimer l'avis</button>
             </div>
             <div class="reponse-form hidden" id="reponse-form-${avisItem.id}">
-                <textarea class="reponse-textarea" placeholder="Votre reponse..." rows="3">${avisItem.reponse ? echapper(avisItem.reponse.texte) : ''}</textarea>
+                <textarea class="reponse-textarea" placeholder="Votre réponse..." rows="3">${avisItem.reponse ? echapper(avisItem.reponse.texte) : ''}</textarea>
                 <div class="reponse-actions">
                     <button type="button" class="btn-publier-reponse" data-action="publier-reponse" data-id="${avisItem.id}">Publier</button>
-                    ${avisItem.reponse ? `<button type="button" class="btn-supprimer-reponse" data-action="supprimer-reponse" data-id="${avisItem.id}">Supprimer la reponse</button>` : ''}
+                    ${avisItem.reponse ? `<button type="button" class="btn-supprimer-reponse" data-action="supprimer-reponse" data-id="${avisItem.id}">Supprimer la réponse</button>` : ''}
                 </div>
             </div>` : '';
 
@@ -379,7 +380,7 @@ function afficherAvis() {
                 <span class="avis-nom">${echapper(avisItem.nom)}</span>
                 <span class="avis-note">${"⭐".repeat(Math.min(Math.max(avisItem.note,1),5))}</span>
             </div>
-            <p class="avis-chanson">A propos de : ${echapper(chansonAssociee ? chansonAssociee.titre : "Chanson supprimee")}</p>
+            <p class="avis-chanson">À propos de : ${echapper(chansonAssociee ? chansonAssociee.titre : "Chanson supprimée")}</p>
             <p class="avis-commentaire">${echapper(avisItem.commentaire)}</p>
             <p class="avis-date">${echapper(avisItem.date)}</p>
             ${reponseHtml}
@@ -484,7 +485,7 @@ document.getElementById("btn-deconnecter").addEventListener("click", () => {
     cacherSectionUpload();
     afficherChansons();
     afficherAvis();
-    afficherNotification("Deconnecte de l'espace artiste.");
+    afficherNotification("Déconnecté de l'espace artiste.");
 });
 
 // =====================================================================
@@ -512,7 +513,7 @@ document.getElementById("form-chanson").addEventListener("submit", async e => {
         try {
             audioUrl = await lireFichierAudioEnDataUrl(fichierAudio);
         } catch {
-            afficherNotification("Le fichier audio n'a pas pu etre charge.", "error");
+            afficherNotification("Le fichier audio n'a pas pu être chargé.", "error");
             return;
         }
     }
@@ -530,7 +531,7 @@ document.getElementById("form-chanson").addEventListener("submit", async e => {
     afficherChansons();
     mettreAJourSelectChansons();
     e.target.reset();
-    afficherNotification("Chanson publiee avec succes !");
+    afficherNotification("Chanson publiée avec succès !");
 });
 
 // =====================================================================
@@ -543,7 +544,7 @@ let avisFormRenduA = Date.now();
 document.getElementById("form-avis").addEventListener("submit", e => {
     e.preventDefault();
 
-    // 1. Honeypot : si le champ cache est rempli, c'est un bot
+    // 1. Honeypot : si le champ caché est rempli, c'est un bot
     const honeypot = e.target.querySelector("[name='hp_avis']");
     if (honeypot && honeypot.value) return;
 
@@ -556,7 +557,7 @@ document.getElementById("form-avis").addEventListener("submit", e => {
     const historique = JSON.parse(localStorage.getItem(RATE_KEY) || "[]");
     const recents = historique.filter(t => maintenant - t < 10 * 60 * 1000);
     if (recents.length >= 3) {
-        afficherNotification("Trop d'avis en peu de temps. Reessayez dans quelques minutes.", "error");
+        afficherNotification("Trop d'avis en peu de temps. Réessayez dans quelques minutes.", "error");
         return;
     }
     recents.push(maintenant);
@@ -569,7 +570,7 @@ document.getElementById("form-avis").addEventListener("submit", e => {
     const commentaire = document.getElementById("commentaire-avis").value.trim();
 
     if (!chansonId) { afficherNotification("Choisis une chanson avant de poster l'avis.", "error"); return; }
-    if (!noteStr || isNaN(note) || note < 1 || note > 5) { afficherNotification("Selectionne une note entre 1 et 5.", "error"); return; }
+    if (!noteStr || isNaN(note) || note < 1 || note > 5) { afficherNotification("Sélectionne une note entre 1 et 5.", "error"); return; }
 
     avis.unshift({ id: Date.now(), nom, chansonId, note, commentaire, date: new Date().toLocaleDateString("fr-FR") });
     sauvegarderAvis();
@@ -589,10 +590,10 @@ document.getElementById("filtre-avis").addEventListener("change", () => afficher
 document.getElementById("form-contact").addEventListener("submit", async e => {
     e.preventDefault();
 
-    // Honeypot : si le champ cache est rempli, c'est un bot
+    // Honeypot : si le champ caché est rempli, c'est un bot
     const honeypot = e.target.querySelector("[name='_gotcha']");
     if (honeypot && honeypot.value) {
-        // Simuler un succes pour ne pas alerter le bot
+        // Simuler un succès pour ne pas alerter le bot
         e.target.reset();
         afficherNotification("Message envoyé ! Charly M vous répondra bientôt.");
         return;
@@ -630,7 +631,7 @@ document.getElementById("form-contact").addEventListener("submit", async e => {
 });
 
 // =====================================================================
-// Reponses de Charly aux avis
+// Réponses de Charly aux avis
 // =====================================================================
 
 function toggleReponseForm(avisId) {
@@ -644,24 +645,24 @@ function publierReponse(avisId) {
     if (!estAuthentifie) return;
     const form = document.getElementById(`reponse-form-${avisId}`);
     const texte = form.querySelector(".reponse-textarea").value.trim();
-    if (!texte) { afficherNotification("La reponse ne peut pas etre vide.", "error"); return; }
+    if (!texte) { afficherNotification("La réponse ne peut pas être vide.", "error"); return; }
     const avisItem = avis.find(a => a.id === avisId);
     if (!avisItem) return;
     avisItem.reponse = { texte, date: new Date().toLocaleDateString("fr-FR") };
     sauvegarderAvis();
     afficherAvis();
-    afficherNotification("Reponse publiee !");
+    afficherNotification("Réponse publiée !");
 }
 
 async function supprimerReponse(avisId) {
     if (!estAuthentifie) return;
-    if (!await confirmer("Supprimer cette reponse ?")) return;
+    if (!await confirmer("Supprimer cette réponse ?")) return;
     const avisItem = avis.find(a => a.id === avisId);
     if (!avisItem) return;
     avisItem.reponse = null;
     sauvegarderAvis();
     afficherAvis();
-    afficherNotification("Reponse supprimee.");
+    afficherNotification("Réponse supprimée.");
 }
 
 function confirmer(message) {
@@ -695,19 +696,19 @@ function confirmer(message) {
 
 async function supprimerAvis(avisId) {
     if (!estAuthentifie) return;
-    if (!await confirmer("Supprimer cet avis definitivement ? Cette action est irreversible.")) return;
+    if (!await confirmer("Supprimer cet avis définitivement ? Cette action est irréversible.")) return;
     const avisItem = avis.find(a => a.id === avisId);
     const chansonId = avisItem ? avisItem.chansonId : null;
     avis = avis.filter(a => a.id !== avisId);
     sauvegarderAvis();
     if (chansonId) mettreAJourNoteChanson(chansonId);
     afficherAvis();
-    afficherNotification("Avis supprime.");
+    afficherNotification("Avis supprimé.");
 }
 
 
 // =====================================================================
-// Delegation d'evenements (les onclick inline sont bloques par CSP)
+// Délégation d'événements (les onclick inline sont bloqués par CSP)
 // =====================================================================
 
 document.getElementById("chansons-liste").addEventListener("click", e => {
