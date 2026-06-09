@@ -372,8 +372,12 @@ async function uploadAudioViaGitHub(fichier) {
         body: JSON.stringify({ message: `Ajout audio : ${fichier.name}`, content: base64 })
     });
     if (!reponse.ok) {
-        const err = await reponse.json();
-        throw new Error(err.message || "Erreur API GitHub");
+        const err = await reponse.json().catch(() => ({}));
+        const statut = reponse.status;
+        if (statut === 401) throw new Error("token-invalide");
+        if (statut === 403) throw new Error("token-droits");
+        if (statut === 422) throw new Error("fichier-trop-grand");
+        throw new Error(err.message || `erreur-${statut}`);
     }
     return `https://raw.githubusercontent.com/iQuertzZ/desmauxdansdesmots/main/${chemin}`;
 }
@@ -482,12 +486,24 @@ document.getElementById("form-chanson").addEventListener("submit", async e => {
             afficherNotification("Reconnecte-toi en saisissant aussi le token GitHub pour uploader un fichier.", "error");
             return;
         }
+        if (fichierAudio.size > 50 * 1024 * 1024) {
+            afficherNotification("Fichier trop volumineux (max 50 Mo).", "error");
+            return;
+        }
         try {
             afficherNotification("Upload en cours...");
             audioUrl = await uploadAudioViaGitHub(fichierAudio);
         } catch (err) {
             console.error("[GitHub API] Erreur upload :", err.message);
-            afficherNotification("Erreur lors de l'envoi du fichier audio.", "error");
+            if (err.message === "token-invalide") {
+                afficherNotification("Token GitHub invalide. Déconnecte-toi et reconnecte-toi avec le bon token.", "error");
+            } else if (err.message === "token-droits") {
+                afficherNotification("Le token n'a pas les droits suffisants sur ce dépôt.", "error");
+            } else if (err.message === "fichier-trop-grand") {
+                afficherNotification("Fichier trop volumineux pour l'envoi.", "error");
+            } else {
+                afficherNotification("Erreur lors de l'envoi du fichier audio (" + err.message + ").", "error");
+            }
             return;
         }
     }
