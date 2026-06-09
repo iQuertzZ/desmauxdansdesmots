@@ -72,7 +72,8 @@ async function chargerDonnees() {
     try {
         const snap = await db.collection("chansons").get();
         chansons = snap.docs.map(d => d.data()).sort((a, b) => b.id - a.id);
-    } catch {
+    } catch (err) {
+        console.error("[Firebase] Erreur lecture chansons :", err.code, err.message);
         chansons = [];
     }
 
@@ -81,7 +82,8 @@ async function chargerDonnees() {
         avis = snap.docs
             .map(d => ({ ...d.data(), reponse: d.data().reponse || null }))
             .sort((a, b) => b.id - a.id);
-    } catch {
+    } catch (err) {
+        console.error("[Firebase] Erreur lecture avis :", err.code, err.message);
         avis = [];
     }
 }
