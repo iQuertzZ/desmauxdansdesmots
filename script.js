@@ -351,18 +351,32 @@ function afficherNotification(message, type = "success") {
     setTimeout(() => n.classList.remove("show"), 3200);
 }
 
-function lireFichierAudioEnDataUrl(fichier) {
-    return new Promise((resolve, reject) => {
-        const lecteur = new FileReader();
-        lecteur.onload = () => resolve(lecteur.result);
-        lecteur.onerror = () => reject(new Error("Lecture impossible"));
-        lecteur.readAsDataURL(fichier);
-    });
-}
-
 // =====================================================================
 // Authentification
 // =====================================================================
+
+async function uploadAudioViaGitHub(fichier) {
+    const token = sessionStorage.getItem("github_token");
+    if (!token) throw new Error("no-token");
+    const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result.split(",")[1]);
+        reader.onerror = () => reject(new Error("Lecture impossible"));
+        reader.readAsDataURL(fichier);
+    });
+    const nomFichier = fichier.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const chemin = `audio/${Date.now()}_${nomFichier}`;
+    const reponse = await fetch(`https://api.github.com/repos/iQuertzZ/desmauxdansdesmots/contents/${chemin}`, {
+        method: "PUT",
+        headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ message: `Ajout audio : ${fichier.name}`, content: base64 })
+    });
+    if (!reponse.ok) {
+        const err = await reponse.json();
+        throw new Error(err.message || "Erreur API GitHub");
+    }
+    return `https://raw.githubusercontent.com/iQuertzZ/desmauxdansdesmots/main/${chemin}`;
+}
 
 function syncBtnArtiste() {
     const btn = document.getElementById("btn-artiste");
@@ -417,6 +431,8 @@ document.getElementById("form-auth").addEventListener("submit", async e => {
     if (hashSaisie === HASH_MOT_DE_PASSE_ARTISTE) {
         estAuthentifie = true;
         sessionStorage.setItem("artiste_auth", "1");
+        const tokenSaisi = document.getElementById("github-token-input").value.trim();
+        if (tokenSaisi) sessionStorage.setItem("github_token", tokenSaisi);
         fermerModal();
         afficherSectionUpload();
         afficherChansons();
@@ -432,6 +448,7 @@ document.getElementById("form-auth").addEventListener("submit", async e => {
 document.getElementById("btn-deconnecter").addEventListener("click", () => {
     estAuthentifie = false;
     sessionStorage.removeItem("artiste_auth");
+    sessionStorage.removeItem("github_token");
     cacherSectionUpload();
     afficherChansons();
     afficherAvis();
@@ -453,27 +470,35 @@ document.getElementById("form-chanson").addEventListener("submit", async e => {
     const fichierAudio = document.getElementById("fichier-audio").files[0];
 
     if (!urlAudio && !fichierAudio) {
-        afficherNotification("Ajoute un lien audio ou un fichier audio.", "error");
+        afficherNotification("Ajoute un lien audio ou un fichier .mp3.", "error");
         return;
     }
 
     let audioUrl = urlAudio;
+    const id = Date.now();
 
     if (fichierAudio) {
+        if (!sessionStorage.getItem("github_token")) {
+            afficherNotification("Reconnecte-toi en saisissant aussi le token GitHub pour uploader un fichier.", "error");
+            return;
+        }
         try {
-            audioUrl = await lireFichierAudioEnDataUrl(fichierAudio);
-        } catch {
-            afficherNotification("Le fichier audio n'a pas pu être chargé.", "error");
+            afficherNotification("Upload en cours...");
+            audioUrl = await uploadAudioViaGitHub(fichierAudio);
+        } catch (err) {
+            console.error("[GitHub API] Erreur upload :", err.message);
+            afficherNotification("Erreur lors de l'envoi du fichier audio.", "error");
             return;
         }
     }
 
-    const nouvelleChanson = { id: Date.now(), titre, artiste: "Charly M", genre, date, audioUrl };
+    const nouvelleChanson = { id, titre, artiste: "Charly M", genre, date, audioUrl };
 
     try {
         await saveChanson(nouvelleChanson);
         chansons.unshift(nouvelleChanson);
-    } catch {
+    } catch (err) {
+        console.error("[Firebase] Erreur publication chanson :", err.code, err.message);
         afficherNotification("Erreur lors de la sauvegarde de la chanson.", "error");
         return;
     }
@@ -527,7 +552,8 @@ document.getElementById("form-avis").addEventListener("submit", async e => {
     const nouvelAvis = { id: Date.now(), nom, chansonId, note, commentaire, date: new Date().toLocaleDateString("fr-FR"), reponse: null };
     try {
         await saveAvis(nouvelAvis);
-    } catch {
+    } catch (err) {
+        console.error("[Firebase] Erreur publication avis :", err.code, err.message);
         afficherNotification("Erreur réseau. Réessayez.", "error");
         btn.disabled = false;
         return;

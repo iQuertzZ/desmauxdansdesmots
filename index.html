@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://formspree.io https://firestore.googleapis.com https://*.googleapis.com; media-src 'self' data: blob: https:; img-src 'self' data:; object-src 'none';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://www.gstatic.com https://formspree.io https://firestore.googleapis.com https://*.googleapis.com https://api.github.com; media-src 'self' data: blob: https: https://raw.githubusercontent.com; img-src 'self' data:; object-src 'none';">
     <title>Des maux dans des mots - Charly M</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%23101820'/><text x='16' y='24' font-size='22' text-anchor='middle' fill='%23f4b350'>&#9835;</text></svg>">
     <meta name="description" content="Des maux dans des mots : répertoire des titres de Charly M, écoute, commentaires et avis des auditeurs.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -53,7 +54,7 @@
                 <input type="number" id="annee-chanson" placeholder="Année" min="1900" max="2100" required>
                 <input type="url" id="url-audio" placeholder="Lien audio direct (https://...)" aria-label="Lien audio direct">
                 <div class="file-input-wrap">
-                    <label for="fichier-audio">Ou importer un fichier audio</label>
+                    <label for="fichier-audio">Ou importer un fichier .mp3</label>
                     <input type="file" id="fichier-audio" accept="audio/*" aria-label="Fichier audio">
                 </div>
                 <button type="submit">Publier la chanson</button>
@@ -143,6 +144,7 @@
             <p class="modal-desc">Accès réservé à Charly M.</p>
             <form id="form-auth">
                 <input type="password" id="mdp-artiste" placeholder="Mot de passe" autocomplete="current-password" required>
+                <input type="password" id="github-token-input" placeholder="Token GitHub (pour l'upload audio)" autocomplete="off">
                 <button type="submit">Accéder</button>
             </form>
             <p id="auth-erreur" class="auth-erreur" aria-live="polite"></p>
