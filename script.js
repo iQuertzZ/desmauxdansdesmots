@@ -6,6 +6,32 @@ const FORMSPREE_ENDPOINT = "https://formspree.io/f/xojzqzgv";
 
 const HASH_MOT_DE_PASSE_ARTISTE = "45fe8349f9ab7994e4e588c6dfbca0e24c1636b9d3eb6b78d3bb530f6ce67690";
 
+// =====================================================================
+// Configuration Firebase — remplir avec les valeurs de ton projet
+// 1. Aller sur https://console.firebase.google.com
+// 2. Créer un projet → Ajouter une app web → Copier la config ci-dessous
+// 3. Activer Firestore Database (mode production + règles ouvertes)
+// =====================================================================
+const FIREBASE_CONFIG = {
+
+  apiKey: "AIzaSyA9PV1tSzgrVvpBQeGKfdKYC5S6mAt0TW4",
+
+  authDomain: "desmauxdansdesmots.firebaseapp.com",
+
+  projectId: "desmauxdansdesmots",
+
+  storageBucket: "desmauxdansdesmots.firebasestorage.app",
+
+  messagingSenderId: "168419854235",
+
+  appId: "1:168419854235:web:dc5b7035a3d2a5bd27433e"
+
+};
+
+
+firebase.initializeApp(FIREBASE_CONFIG);
+const db = firebase.firestore();
+
 let estAuthentifie = sessionStorage.getItem("artiste_auth") === "1";
 
 const SVG_PLAY   = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>`;
@@ -18,57 +44,24 @@ let playerAbortController = new AbortController();
 let chansons = [];
 let avis = [];
 
-const STORAGE_KEYS = { avis: "mes_avis_v2" };
-
 // =====================================================================
-// IndexedDB — stockage des chansons (pas de limite de taille)
+// Firestore — helpers de lecture/écriture
 // =====================================================================
 
-const DB_NAME = "charlym_db";
-const DB_VERSION = 1;
-
-function ouvrirDB() {
-    return new Promise((resolve, reject) => {
-        const req = indexedDB.open(DB_NAME, DB_VERSION);
-        req.onupgradeneeded = e => {
-            const database = e.target.result;
-            if (!database.objectStoreNames.contains("chansons")) {
-                database.createObjectStore("chansons", { keyPath: "id" });
-            }
-        };
-        req.onsuccess = () => resolve(req.result);
-        req.onerror  = () => reject(req.error);
-    });
+async function saveChanson(chanson) {
+    await db.collection("chansons").doc(String(chanson.id)).set(chanson);
 }
 
-async function dbGetAll() {
-    const database = await ouvrirDB();
-    return new Promise((resolve, reject) => {
-        const tx  = database.transaction("chansons", "readonly");
-        const req = tx.objectStore("chansons").getAll();
-        req.onsuccess = () => resolve(req.result);
-        req.onerror   = () => reject(req.error);
-    });
+async function deleteChanson(id) {
+    await db.collection("chansons").doc(String(id)).delete();
 }
 
-async function dbPut(chanson) {
-    const database = await ouvrirDB();
-    return new Promise((resolve, reject) => {
-        const tx = database.transaction("chansons", "readwrite");
-        tx.objectStore("chansons").put(chanson);
-        tx.oncomplete = resolve;
-        tx.onerror    = () => reject(tx.error);
-    });
+async function saveAvis(avisItem) {
+    await db.collection("avis").doc(String(avisItem.id)).set(avisItem);
 }
 
-async function dbDelete(id) {
-    const database = await ouvrirDB();
-    return new Promise((resolve, reject) => {
-        const tx = database.transaction("chansons", "readwrite");
-        tx.objectStore("chansons").delete(id);
-        tx.oncomplete = resolve;
-        tx.onerror    = () => reject(tx.error);
-    });
+async function deleteAvis(id) {
+    await db.collection("avis").doc(String(id)).delete();
 }
 
 // =====================================================================
@@ -76,72 +69,20 @@ async function dbDelete(id) {
 // =====================================================================
 
 async function chargerDonnees() {
-    // Nettoyage unique : supprimer les chansons d'exemple (ids 1 et 2) si elles existent encore
-    if (!localStorage.getItem("migration_sans_defauts_v1")) {
-        try { await dbDelete(1); } catch {}
-        try { await dbDelete(2); } catch {}
-        localStorage.setItem("migration_sans_defauts_v1", "1");
-    }
-
-    // Chansons depuis IndexedDB
     try {
-        let dbChansons = await dbGetAll();
-
-        // Migration automatique depuis l'ancien localStorage
-        if (dbChansons.length === 0) {
-            const ancien = localStorage.getItem("mes_chansons_v2") || localStorage.getItem("chansons");
-            if (ancien) {
-                try {
-                    const parsed = JSON.parse(ancien);
-                    if (Array.isArray(parsed) && parsed.length > 0) {
-                        for (const c of parsed) {
-                            await dbPut({ id: c.id || Date.now() + Math.random(), titre: c.titre || "Titre inconnu", artiste: c.artiste || "Charly M", genre: c.genre || "Non renseigné", date: c.date || "2026", audioUrl: c.audioUrl || "" });
-                        }
-                        dbChansons = await dbGetAll();
-                        localStorage.removeItem("mes_chansons_v2");
-                        localStorage.removeItem("chansons");
-                    }
-                } catch {}
-            }
-        }
-
-        if (dbChansons.length > 0) {
-            chansons = dbChansons.sort((a, b) => b.id - a.id);
-        } else {
-            chansons = [];
-        }
+        const snap = await db.collection("chansons").get();
+        chansons = snap.docs.map(d => d.data()).sort((a, b) => b.id - a.id);
     } catch {
         chansons = [];
     }
 
-    // Avis depuis localStorage (données légères)
-    const avisStockes = localStorage.getItem(STORAGE_KEYS.avis) || localStorage.getItem("avis");
-    if (avisStockes) {
-        try {
-            const parsed = JSON.parse(avisStockes);
-            avis = Array.isArray(parsed)
-                ? parsed.map(item => ({
-                    id: item.id || Date.now() + Math.random(),
-                    nom: item.nom || "Anonyme",
-                    chansonId: item.chansonId || (chansons[0] ? String(chansons[0].id) : ""),
-                    note: Number(item.note) || 5,
-                    commentaire: item.commentaire || "",
-                    date: item.date || new Date().toLocaleDateString("fr-FR")
-                }))
-                : [];
-        } catch { avis = []; }
-    } else { avis = []; }
-
-    // Assure la compatibilité avec les anciens avis sans champ réponse
-    avis = avis.map(a => ({ ...a, reponse: a.reponse || null }));
-    sauvegarderAvis();
-}
-
-function sauvegarderAvis() {
     try {
-        localStorage.setItem(STORAGE_KEYS.avis, JSON.stringify(avis));
+        const snap = await db.collection("avis").get();
+        avis = snap.docs
+            .map(d => ({ ...d.data(), reponse: d.data().reponse || null }))
+            .sort((a, b) => b.id - a.id);
     } catch {
-        afficherNotification("Stockage local plein. Certains avis n'ont pas pu être sauvegardés.", "error");
+        avis = [];
     }
 }
 
@@ -322,10 +263,17 @@ async function supprimerChanson(id) {
         ? ` Cela supprimera aussi les ${avisLies.length} avis associé(s).`
         : "";
     if (!await confirmer(`Supprimer « ${titre} » définitivement ?${infoAvis}`)) return;
-    try { await dbDelete(id); } catch {}
+    try {
+        await deleteChanson(id);
+        for (const a of avisLies) {
+            try { await deleteAvis(a.id); } catch {}
+        }
+    } catch {
+        afficherNotification("Erreur lors de la suppression.", "error");
+        return;
+    }
     chansons = chansons.filter(c => c.id !== id);
     avis = avis.filter(a => String(a.chansonId) !== String(id));
-    sauvegarderAvis();
     afficherChansons();
     afficherAvis();
     mettreAJourSelectChansons();
@@ -521,7 +469,7 @@ document.getElementById("form-chanson").addEventListener("submit", async e => {
     const nouvelleChanson = { id: Date.now(), titre, artiste: "Charly M", genre, date, audioUrl };
 
     try {
-        await dbPut(nouvelleChanson);
+        await saveChanson(nouvelleChanson);
         chansons.unshift(nouvelleChanson);
     } catch {
         afficherNotification("Erreur lors de la sauvegarde de la chanson.", "error");
@@ -541,7 +489,7 @@ document.getElementById("form-chanson").addEventListener("submit", async e => {
 // Anti-spam : horodatage du rendu du formulaire avis
 let avisFormRenduA = Date.now();
 
-document.getElementById("form-avis").addEventListener("submit", e => {
+document.getElementById("form-avis").addEventListener("submit", async e => {
     e.preventDefault();
 
     // 1. Honeypot : si le champ caché est rempli, c'est un bot
@@ -572,12 +520,22 @@ document.getElementById("form-avis").addEventListener("submit", e => {
     if (!chansonId) { afficherNotification("Choisis une chanson avant de poster l'avis.", "error"); return; }
     if (!noteStr || isNaN(note) || note < 1 || note > 5) { afficherNotification("Sélectionne une note entre 1 et 5.", "error"); return; }
 
-    avis.unshift({ id: Date.now(), nom, chansonId, note, commentaire, date: new Date().toLocaleDateString("fr-FR") });
-    sauvegarderAvis();
+    const btn = e.target.querySelector("button[type=submit]");
+    btn.disabled = true;
+    const nouvelAvis = { id: Date.now(), nom, chansonId, note, commentaire, date: new Date().toLocaleDateString("fr-FR"), reponse: null };
+    try {
+        await saveAvis(nouvelAvis);
+    } catch {
+        afficherNotification("Erreur réseau. Réessayez.", "error");
+        btn.disabled = false;
+        return;
+    }
+    avis.unshift(nouvelAvis);
     mettreAJourNoteChanson(chansonId);
     afficherAvis();
     e.target.reset();
     avisFormRenduA = Date.now();
+    btn.disabled = false;
     afficherNotification("Merci pour ton avis !");
 });
 
@@ -641,15 +599,22 @@ function toggleReponseForm(avisId) {
     if (!form.classList.contains("hidden")) form.querySelector(".reponse-textarea").focus();
 }
 
-function publierReponse(avisId) {
+async function publierReponse(avisId) {
     if (!estAuthentifie) return;
     const form = document.getElementById(`reponse-form-${avisId}`);
     const texte = form.querySelector(".reponse-textarea").value.trim();
     if (!texte) { afficherNotification("La réponse ne peut pas être vide.", "error"); return; }
     const avisItem = avis.find(a => a.id === avisId);
     if (!avisItem) return;
+    const ancienneReponse = avisItem.reponse;
     avisItem.reponse = { texte, date: new Date().toLocaleDateString("fr-FR") };
-    sauvegarderAvis();
+    try {
+        await saveAvis(avisItem);
+    } catch {
+        afficherNotification("Erreur lors de la sauvegarde.", "error");
+        avisItem.reponse = ancienneReponse;
+        return;
+    }
     afficherAvis();
     afficherNotification("Réponse publiée !");
 }
@@ -659,8 +624,15 @@ async function supprimerReponse(avisId) {
     if (!await confirmer("Supprimer cette réponse ?")) return;
     const avisItem = avis.find(a => a.id === avisId);
     if (!avisItem) return;
+    const ancienneReponse = avisItem.reponse;
     avisItem.reponse = null;
-    sauvegarderAvis();
+    try {
+        await saveAvis(avisItem);
+    } catch {
+        afficherNotification("Erreur lors de la suppression.", "error");
+        avisItem.reponse = ancienneReponse;
+        return;
+    }
     afficherAvis();
     afficherNotification("Réponse supprimée.");
 }
@@ -699,8 +671,13 @@ async function supprimerAvis(avisId) {
     if (!await confirmer("Supprimer cet avis définitivement ? Cette action est irréversible.")) return;
     const avisItem = avis.find(a => a.id === avisId);
     const chansonId = avisItem ? avisItem.chansonId : null;
+    try {
+        await deleteAvis(avisId);
+    } catch {
+        afficherNotification("Erreur lors de la suppression.", "error");
+        return;
+    }
     avis = avis.filter(a => a.id !== avisId);
-    sauvegarderAvis();
     if (chansonId) mettreAJourNoteChanson(chansonId);
     afficherAvis();
     afficherNotification("Avis supprimé.");
