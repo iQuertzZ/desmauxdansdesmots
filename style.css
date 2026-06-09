@@ -12,7 +12,7 @@
     --ease-out: cubic-bezier(0.22,1,0.36,1);
 }
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
-html{scroll-behavior:smooth;scroll-padding-top:4.5rem}
+html{scroll-behavior:smooth;scroll-padding-top:4.5rem;background-color:var(--bg-bottom)}
 ::selection{background:rgba(244,179,80,0.28);color:var(--text)}
 ::-webkit-scrollbar{width:5px}
 ::-webkit-scrollbar-track{background:var(--bg-bottom)}
