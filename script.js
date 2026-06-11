@@ -38,8 +38,92 @@ const SVG_PLAY   = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="1
 const SVG_PAUSE  = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>`;
 const SVG_LOCK   = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
 const SVG_UNLOCK = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>`;
+const SVG_PLAY_LG  = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>`;
+const SVG_PAUSE_LG = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>`;
+const SVG_PREV = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="19,20 9,12 19,4"/><rect x="5" y="4" width="2" height="16"/></svg>`;
+const SVG_NEXT = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,4 15,12 5,20"/><rect x="17" y="4" width="2" height="16"/></svg>`;
 
 let playerAbortController = new AbortController();
+
+// =====================================================================
+// Global player (barre Spotify en bas)
+// =====================================================================
+
+const globalPlayer = {
+    audio: null,
+    index: -1,
+
+    jouer(index) {
+        const chanson = chansons[index];
+        if (!chanson || !chanson.audioUrl) return;
+        if (this.audio) { this.audio.pause(); this.audio.src = ""; this.audio = null; }
+        this.index = index;
+
+        const bp        = document.getElementById("bottom-player");
+        const bpTitre   = document.getElementById("bp-titre");
+        const bpArtiste = document.getElementById("bp-artiste");
+        const bpCur     = document.getElementById("bp-cur");
+        const bpDur     = document.getElementById("bp-dur");
+        const bpFill    = document.getElementById("bp-fill");
+        const bpBtn     = document.getElementById("bp-playpause");
+
+        bpTitre.textContent   = chanson.titre;
+        bpArtiste.textContent = chanson.artiste;
+        bpCur.textContent     = "0:00";
+        bpDur.textContent     = "--:--";
+        bpFill.style.width    = "0%";
+        bpBtn.innerHTML       = SVG_PAUSE_LG;
+        bp.classList.add("bp-visible", "bp-loading");
+        document.body.classList.add("has-player");
+
+        this.audio = new Audio(chanson.audioUrl);
+        this.audio.addEventListener("timeupdate", () => {
+            const p = this.audio.duration ? (this.audio.currentTime / this.audio.duration) * 100 : 0;
+            bpFill.style.width  = `${p}%`;
+            bpCur.textContent   = formaterTemps(this.audio.currentTime);
+        });
+        this.audio.addEventListener("loadedmetadata", () => { bpDur.textContent = formaterTemps(this.audio.duration); });
+        this.audio.addEventListener("canplay",         () => { bp.classList.remove("bp-loading"); });
+        this.audio.addEventListener("ended",           () => { this.suivant(); });
+        this.audio.addEventListener("error",           () => { bpDur.textContent = "Erreur"; bp.classList.remove("bp-loading"); bpBtn.innerHTML = SVG_PLAY_LG; this.syncCardButtons(); });
+
+        this.syncCardButtons();
+        this.audio.play().catch(() => { bpBtn.innerHTML = SVG_PLAY_LG; this.syncCardButtons(); });
+    },
+
+    togglePlayPause() {
+        if (!this.audio) { if (chansons.length) this.jouer(0); return; }
+        const bpBtn = document.getElementById("bp-playpause");
+        if (this.audio.paused) {
+            this.audio.play().catch(() => {});
+            bpBtn.innerHTML = SVG_PAUSE_LG;
+        } else {
+            this.audio.pause();
+            bpBtn.innerHTML = SVG_PLAY_LG;
+        }
+        this.syncCardButtons();
+    },
+
+    precedent() {
+        if (!chansons.length) return;
+        this.jouer(this.index <= 0 ? chansons.length - 1 : this.index - 1);
+    },
+
+    suivant() {
+        if (!chansons.length) return;
+        this.jouer(this.index >= chansons.length - 1 ? 0 : this.index + 1);
+    },
+
+    syncCardButtons() {
+        chansons.forEach((chanson, i) => {
+            const card = document.querySelector(`.chanson-card[data-id="${chanson.id}"]`);
+            if (!card) return;
+            const btn = card.querySelector(".player-btn");
+            if (btn) btn.innerHTML = (i === this.index && this.audio && !this.audio.paused) ? SVG_PAUSE : SVG_PLAY;
+            card.classList.toggle("active-track", i === this.index);
+        });
+    }
+};
 
 let chansons = [];
 let avis = [];
@@ -193,9 +277,6 @@ function initPlayer(playerEl, src) {
 // =====================================================================
 
 function afficherChansons() {
-    playerAbortController.abort();
-    playerAbortController = new AbortController();
-
     const liste = document.getElementById("chansons-liste");
     liste.innerHTML = "";
 
@@ -216,17 +297,9 @@ function afficherChansons() {
             ? `<p class="chanson-meta note-display">Note moyenne : ${echapper(moyenne)}/5 (${avisChanson.length} avis)</p>`
             : '<p class="chanson-meta note-display">Pas encore d\'avis</p>';
 
-        const playerHtml = chanson.audioUrl ? `
-            <div class="player">
-                <button class="player-btn" type="button" aria-label="Lecture / Pause">${SVG_PLAY}</button>
-                <div class="player-body">
-                    <div class="player-bar-wrap" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-                        <div class="player-bar"><div class="player-fill"></div></div>
-                    </div>
-                    <div class="player-times"><span class="player-cur">0:00</span><span class="player-dur">--:--</span></div>
-                </div>
-            </div>
-        ` : '<p class="chanson-meta">Audio à venir...</p>';
+        const playerHtml = chanson.audioUrl
+            ? `<div class="player"><button class="player-btn" type="button" data-action="play-chanson" data-id="${chanson.id}" aria-label="Écouter / Pause">${SVG_PLAY}</button></div>`
+            : '<p class="chanson-meta">À venir...</p>';
 
         const btnSupprimer = estAuthentifie
             ? `<button class="btn-supprimer" type="button" data-action="supprimer-chanson" data-id="${chanson.id}">Supprimer</button>`
@@ -243,8 +316,8 @@ function afficherChansons() {
         `;
 
         liste.appendChild(card);
-        if (chanson.audioUrl) initPlayer(card.querySelector(".player"), chanson.audioUrl);
     });
+    globalPlayer.syncCardButtons();
 }
 
 function mettreAJourNoteChanson(chansonId) {
@@ -736,6 +809,13 @@ document.getElementById("chansons-liste").addEventListener("click", e => {
     const btn = e.target.closest("[data-action]");
     if (!btn) return;
     if (btn.dataset.action === "supprimer-chanson") supprimerChanson(Number(btn.dataset.id));
+    if (btn.dataset.action === "play-chanson") {
+        const idx = chansons.findIndex(c => String(c.id) === String(btn.dataset.id));
+        if (idx !== -1) {
+            if (globalPlayer.index === idx && globalPlayer.audio) globalPlayer.togglePlayPause();
+            else globalPlayer.jouer(idx);
+        }
+    }
 });
 
 document.getElementById("avis-liste").addEventListener("click", e => {
@@ -763,6 +843,33 @@ const sectionObserver = new IntersectionObserver(entries => {
 }, { threshold: 0.2, rootMargin: "-10% 0px -60% 0px" });
 
 document.querySelectorAll("section[id]").forEach(s => sectionObserver.observe(s));
+
+// =====================================================================
+// Bottom player — boutons et seek
+// =====================================================================
+
+document.getElementById("bp-playpause").addEventListener("click", () => globalPlayer.togglePlayPause());
+document.getElementById("bp-prev").addEventListener("click",      () => globalPlayer.precedent());
+document.getElementById("bp-next").addEventListener("click",      () => globalPlayer.suivant());
+
+// Initialiser les icônes des boutons
+document.getElementById("bp-playpause").innerHTML = SVG_PLAY_LG;
+document.getElementById("bp-prev").innerHTML      = SVG_PREV;
+document.getElementById("bp-next").innerHTML      = SVG_NEXT;
+
+document.getElementById("bp-bar-wrap").addEventListener("click", e => {
+    if (!globalPlayer.audio) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const pct  = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    if (globalPlayer.audio.duration) globalPlayer.audio.currentTime = pct * globalPlayer.audio.duration;
+});
+
+document.querySelector(".hero-cta").addEventListener("click", e => {
+    if (!chansons.length) return;
+    e.preventDefault();
+    document.getElementById("chansons-section").scrollIntoView({ behavior: "smooth" });
+    globalPlayer.jouer(0);
+});
 
 // =====================================================================
 // Init

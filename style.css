@@ -162,3 +162,34 @@ footer{padding:22px 0 32px;color:rgba(168,192,200,0.4);text-align:center;font-si
 /* Honeypot anti-bot : hors ecran mais pas display:none (les bots detectent display:none) */
 .champ-honeypot{position:absolute;left:-9999px;top:-9999px;opacity:0;height:0;width:0;overflow:hidden;pointer-events:none;tabindex:-1}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation-duration:.01ms !important;transition-duration:.01ms !important}}
+
+/* =====================================================================
+   Bottom Player (style Spotify)
+   ===================================================================== */
+body.has-player{padding-bottom:88px}
+.bottom-player{position:fixed;bottom:0;left:0;right:0;height:82px;background:#0c1520;border-top:1px solid rgba(174,220,232,0.13);display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:0 24px;gap:16px;z-index:200;box-shadow:0 -4px 24px rgba(0,0,0,0.45);transform:translateY(110%);opacity:0;pointer-events:none;transition:transform .35s var(--ease-out),opacity .3s}
+.bottom-player.bp-visible{transform:translateY(0);opacity:1;pointer-events:auto}
+.bp-info{display:flex;align-items:center;gap:12px;min-width:0}
+.bp-icon{width:42px;height:42px;background:rgba(244,179,80,0.1);border:1px solid rgba(244,179,80,0.22);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;color:var(--accent)}
+.bp-text{display:flex;flex-direction:column;gap:2px;min-width:0}
+.bp-titre{font-size:.86rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bp-artiste{font-size:.74rem;color:var(--muted)}
+.bp-center{display:flex;flex-direction:column;align-items:center;gap:6px}
+.bp-controls{display:flex;align-items:center;gap:18px}
+.bp-btn-skip{background:none;border:none;color:var(--muted);cursor:pointer;padding:4px;border-radius:4px;display:flex;align-items:center;justify-content:center;transition:color .15s,transform .12s}
+.bp-btn-skip:hover{color:var(--text);transform:scale(1.12)}
+.bp-btn-main{width:46px;height:46px;border-radius:50%;background:var(--accent);border:none;color:#1a1a2e;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s,transform .12s,box-shadow .15s;box-shadow:0 2px 14px rgba(244,179,80,0.3)}
+.bp-btn-main svg{flex-shrink:0;display:block}
+.bp-btn-main:hover{background:#ffdf7e;transform:scale(1.07);box-shadow:0 4px 20px rgba(244,179,80,0.42)}
+.bp-btn-main:active{transform:scale(.95)}
+.bp-progress-row{display:flex;align-items:center;gap:9px;width:min(460px,80vw)}
+.bp-time{font-size:.72rem;color:var(--muted);min-width:34px;text-align:center;font-variant-numeric:tabular-nums}
+.bp-bar-wrap{flex:1;cursor:pointer;padding:9px 0}
+.bp-bar{height:3px;background:rgba(255,255,255,0.1);border-radius:999px;overflow:hidden;transition:height .15s}
+.bp-bar-wrap:hover .bp-bar{height:5px}
+.bp-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--accent),#ffdf7e);border-radius:999px;transition:width .1s linear}
+.bp-right{min-width:0}
+.bottom-player.bp-loading .bp-btn-main{animation:pulse 1s ease-in-out infinite}
+.chanson-card.active-track{border-color:rgba(244,179,80,0.4);box-shadow:0 0 22px rgba(244,179,80,0.1)}
+.chanson-card.active-track .player-btn{background:rgba(244,179,80,0.28);box-shadow:0 0 14px rgba(244,179,80,0.2)}
+@media(max-width:640px){.bottom-player{grid-template-columns:1fr;height:auto;padding:10px 14px 14px;gap:8px}.bp-info{width:100%}.bp-progress-row{width:96vw}.bp-right{display:none}}

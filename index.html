@@ -153,6 +153,32 @@
 
     <div id="notification" class="notification" role="status" aria-live="polite"></div>
 
+    <!-- Barre lecteur globale (style Spotify) -->
+    <div id="bottom-player" class="bottom-player" role="region" aria-label="Lecteur audio">
+        <div class="bp-info">
+            <div class="bp-icon" aria-hidden="true">♪</div>
+            <div class="bp-text">
+                <span id="bp-titre" class="bp-titre">&mdash;</span>
+                <span id="bp-artiste" class="bp-artiste">Charly M</span>
+            </div>
+        </div>
+        <div class="bp-center">
+            <div class="bp-controls">
+                <button id="bp-prev" type="button" aria-label="Titre précédent" class="bp-btn-skip"></button>
+                <button id="bp-playpause" type="button" aria-label="Lecture / Pause" class="bp-btn-main"></button>
+                <button id="bp-next" type="button" aria-label="Titre suivant" class="bp-btn-skip"></button>
+            </div>
+            <div class="bp-progress-row">
+                <span id="bp-cur" class="bp-time">0:00</span>
+                <div id="bp-bar-wrap" class="bp-bar-wrap" tabindex="0">
+                    <div class="bp-bar"><div id="bp-fill" class="bp-fill"></div></div>
+                </div>
+                <span id="bp-dur" class="bp-time">--:--</span>
+            </div>
+        </div>
+        <div class="bp-right"></div>
+    </div>
+
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
     <script src="script.js"></script>
