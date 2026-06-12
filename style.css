@@ -157,6 +157,13 @@ footer{padding:22px 0 32px;color:rgba(168,192,200,0.4);text-align:center;font-si
 .btn-supprimer-reponse:active{transform:none}
 
 
+/* === ARTIST BANNER === */
+.artist-banner{position:relative;width:100%;overflow:hidden;line-height:0}
+.artist-banner-img{width:100%;height:clamp(320px,55vw,600px);object-fit:cover;object-position:center 63%;display:block;filter:brightness(0.82) saturate(0.88) contrast(1.04);animation:bannerReveal 1.6s var(--ease-out) both}
+.artist-banner-overlay{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(9,16,22,0.60) 0%,rgba(9,16,22,0.05) 15%,transparent 32%,transparent 55%,rgba(14,20,27,0.50) 74%,rgba(14,20,27,0.92) 88%,#0e141b 100%);pointer-events:none}
+@keyframes bannerReveal{from{opacity:0;transform:scale(1.03) translateY(6px)}to{opacity:1;transform:scale(1) translateY(0)}}
+@media(max-width:640px){.artist-banner-img{height:260px;object-position:center 45%}}
+
 .hidden{display:none !important}
 @media(max-width:760px){.hero{padding-top:36px}body::before{width:130px;top:44px}.form-grid{grid-template-columns:1fr}.hero h1{font-size:clamp(2rem,10vw,3.2rem)}.chansons-grid{grid-template-columns:1fr}}
 /* Honeypot anti-bot : hors ecran mais pas display:none (les bots detectent display:none) */
