@@ -159,6 +159,10 @@ footer{padding:22px 0 32px;color:rgba(168,192,200,0.4);text-align:center;font-si
 
 /* === ARTIST BANNER === */
 .artist-banner{position:relative;width:100%;overflow:hidden;line-height:0}
+.artist-banner-caption{position:absolute;bottom:clamp(1rem,4vw,2.2rem);left:0;right:0;z-index:2;padding:0 clamp(1rem,5vw,3rem);display:flex;flex-direction:column;gap:.5rem;pointer-events:none;line-height:1.5}
+.banner-credits{font-family:var(--font-display);font-style:italic;color:rgba(255,255,255,0.92);font-size:clamp(.82rem,2vw,1.05rem);letter-spacing:.03em;text-shadow:0 1px 8px rgba(0,0,0,0.7)}
+.banner-ai{font-style:normal;font-family:var(--font-body);font-size:.78em;color:var(--accent);opacity:.9}
+.banner-search{font-family:var(--font-body);color:var(--accent);font-size:clamp(.78rem,1.8vw,.95rem);font-weight:500;letter-spacing:.04em;text-shadow:0 1px 8px rgba(0,0,0,0.7)}
 .artist-banner-img{width:100%;height:clamp(320px,55vw,600px);object-fit:cover;object-position:center 63%;display:block;filter:brightness(0.82) saturate(0.88) contrast(1.04);animation:bannerReveal 1.6s var(--ease-out) both}
 .artist-banner-overlay{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(9,16,22,0.60) 0%,rgba(9,16,22,0.05) 15%,transparent 32%,transparent 55%,rgba(14,20,27,0.50) 74%,rgba(14,20,27,0.92) 88%,#0e141b 100%);pointer-events:none}
 @keyframes bannerReveal{from{opacity:0;transform:scale(1.03) translateY(6px)}to{opacity:1;transform:scale(1) translateY(0)}}
