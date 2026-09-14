@@ -45,6 +45,12 @@ const SVG_NEXT = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"
 
 let playerAbortController = new AbortController();
 
+const reorderState = {
+    saveTimer: null,
+    draggedId: null,
+    dirty: false
+};
+
 // =====================================================================
 // Global player (barre Spotify en bas)
 // =====================================================================
@@ -128,6 +134,105 @@ const globalPlayer = {
 let chansons = [];
 let avis = [];
 
+function utilisateurPeutReordonner() {
+    return estAuthentifie && !!sessionStorage.getItem("github_token");
+}
+
+function normaliserOrdreChansons() {
+    chansons.forEach((chanson, idx) => {
+        chanson.order = idx + 1;
+    });
+}
+
+function trierChansonsPourAffichage(items) {
+    return items.sort((a, b) => {
+        const ao = Number.isFinite(a.order) ? a.order : null;
+        const bo = Number.isFinite(b.order) ? b.order : null;
+        if (ao !== null && bo !== null) return ao - bo;
+        if (ao !== null) return -1;
+        if (bo !== null) return 1;
+        return b.id - a.id;
+    });
+}
+
+function mettreAJourHintReorder() {
+    const toolbar = document.getElementById("reorder-toolbar");
+    const hint = document.getElementById("reorder-hint");
+    if (!toolbar || !hint) return;
+
+    if (utilisateurPeutReordonner()) {
+        toolbar.classList.remove("hidden");
+        hint.textContent = "Reordonne les titres par glisser-deposer ou avec les boutons Monter / Descendre. L'ordre est sauvegarde automatiquement.";
+        return;
+    }
+
+    if (estAuthentifie) {
+        toolbar.classList.remove("hidden");
+        hint.textContent = "Ajoute ton token GitHub a la connexion pour activer le reordonnancement des chansons.";
+        return;
+    }
+
+    toolbar.classList.add("hidden");
+}
+
+async function sauvegarderOrdreChansons() {
+    if (!utilisateurPeutReordonner()) return;
+    const snapshot = chansons.map(c => ({ ...c }));
+    try {
+        await Promise.all(snapshot.map(chanson => saveChanson(chanson)));
+        reorderState.dirty = false;
+        afficherNotification("Ordre des chansons sauvegarde.");
+    } catch {
+        afficherNotification("Impossible de sauvegarder le nouvel ordre.", "error");
+    }
+}
+
+function programmerSauvegardeOrdre() {
+    if (!utilisateurPeutReordonner()) return;
+    reorderState.dirty = true;
+    if (reorderState.saveTimer) clearTimeout(reorderState.saveTimer);
+    reorderState.saveTimer = setTimeout(() => {
+        reorderState.saveTimer = null;
+        sauvegarderOrdreChansons();
+    }, 700);
+}
+
+function nettoyerStylesDrop() {
+    document.querySelectorAll(".chanson-card.drop-before, .chanson-card.drop-after").forEach(el => {
+        el.classList.remove("drop-before", "drop-after");
+    });
+}
+
+function deplacerChanson(sourceId, cibleId, apres = false) {
+    const sourceIndex = chansons.findIndex(c => String(c.id) === String(sourceId));
+    const cibleIndex = chansons.findIndex(c => String(c.id) === String(cibleId));
+    if (sourceIndex === -1 || cibleIndex === -1 || sourceIndex === cibleIndex) return false;
+
+    const trackIdActif = globalPlayer.index >= 0 ? chansons[globalPlayer.index]?.id : null;
+    const [source] = chansons.splice(sourceIndex, 1);
+    let insertIndex = chansons.findIndex(c => String(c.id) === String(cibleId));
+    if (insertIndex === -1) return false;
+    if (apres) insertIndex += 1;
+    chansons.splice(insertIndex, 0, source);
+
+    normaliserOrdreChansons();
+    if (trackIdActif !== null) {
+        globalPlayer.index = chansons.findIndex(c => String(c.id) === String(trackIdActif));
+    }
+    afficherChansons();
+    programmerSauvegardeOrdre();
+    return true;
+}
+
+function deplacerChansonParOffset(id, offset) {
+    const idx = chansons.findIndex(c => String(c.id) === String(id));
+    if (idx === -1) return;
+    const cible = idx + offset;
+    if (cible < 0 || cible >= chansons.length) return;
+    const cibleId = chansons[cible].id;
+    deplacerChanson(id, cibleId, offset > 0);
+}
+
 // =====================================================================
 // Firestore — helpers de lecture/écriture
 // =====================================================================
@@ -155,7 +260,8 @@ async function deleteAvis(id) {
 async function chargerDonnees() {
     try {
         const snap = await db.collection("chansons").get();
-        chansons = snap.docs.map(d => d.data()).sort((a, b) => b.id - a.id);
+        chansons = trierChansonsPourAffichage(snap.docs.map(d => d.data()));
+        normaliserOrdreChansons();
     } catch (err) {
         console.error("[Firebase] Erreur lecture chansons :", err.code, err.message);
         chansons = [];
@@ -278,7 +384,9 @@ function initPlayer(playerEl, src) {
 
 function afficherChansons() {
     const liste = document.getElementById("chansons-liste");
+    const peutReordonner = utilisateurPeutReordonner();
     liste.innerHTML = "";
+    mettreAJourHintReorder();
 
     if (!chansons.length) {
         liste.innerHTML = '<p class="chanson-meta">Aucune chanson pour le moment.</p>';
@@ -289,6 +397,10 @@ function afficherChansons() {
         const card = document.createElement("article");
         card.className = "chanson-card";
         card.dataset.id = String(chanson.id);
+        if (peutReordonner) {
+            card.classList.add("reorderable");
+            card.setAttribute("draggable", "true");
+        }
 
         const avisChanson = avis.filter(item => String(item.chansonId) === String(chanson.id));
         const moyenne = avisChanson.length ? (avisChanson.reduce((acc,item) => acc+item.note, 0) / avisChanson.length).toFixed(1) : null;
@@ -305,6 +417,10 @@ function afficherChansons() {
             ? `<button class="btn-supprimer" type="button" data-action="supprimer-chanson" data-id="${chanson.id}">Supprimer</button>`
             : '';
 
+        const btnReorder = peutReordonner
+            ? `<div class="reorder-actions"><button class="btn-move" type="button" data-action="move-up" data-id="${chanson.id}" ${index === 0 ? "disabled" : ""}>Monter</button><button class="btn-move" type="button" data-action="move-down" data-id="${chanson.id}" ${index === chansons.length - 1 ? "disabled" : ""}>Descendre</button></div>`
+            : "";
+
         card.innerHTML = `
             <span class="track-num">${String(index+1).padStart(2,"0")}</span>
             <h3>${echapper(chanson.titre)}</h3>
@@ -312,6 +428,7 @@ function afficherChansons() {
             <span class="genre-tag">${echapper(chanson.genre)}</span>
             ${noteMoyenne}
             ${playerHtml}
+            ${btnReorder}
             ${btnSupprimer}
         `;
 
@@ -484,6 +601,7 @@ function afficherSectionUpload() {
 function cacherSectionUpload() {
     document.getElementById("upload-section").classList.add("hidden");
     syncBtnArtiste();
+    mettreAJourHintReorder();
 }
 
 document.getElementById("btn-artiste").addEventListener("click", () => {
@@ -514,6 +632,7 @@ document.getElementById("form-auth").addEventListener("submit", async e => {
         afficherSectionUpload();
         afficherChansons();
         afficherAvis();
+        mettreAJourHintReorder();
         afficherNotification("Bienvenue, Charly M !");
     } else {
         document.getElementById("auth-erreur").textContent = "Mot de passe incorrect.";
@@ -529,6 +648,7 @@ document.getElementById("btn-deconnecter").addEventListener("click", () => {
     cacherSectionUpload();
     afficherChansons();
     afficherAvis();
+    mettreAJourHintReorder();
     afficherNotification("Déconnecté de l'espace artiste.");
 });
 
@@ -581,11 +701,13 @@ document.getElementById("form-chanson").addEventListener("submit", async e => {
         }
     }
 
-    const nouvelleChanson = { id, titre, artiste: "Charly M", genre, date, audioUrl };
+    const maxOrder = chansons.reduce((max, c) => Math.max(max, Number.isFinite(c.order) ? c.order : 0), 0);
+    const nouvelleChanson = { id, titre, artiste: "Charly M", genre, date, audioUrl, order: maxOrder + 1 };
 
     try {
         await saveChanson(nouvelleChanson);
-        chansons.unshift(nouvelleChanson);
+        chansons.push(nouvelleChanson);
+        normaliserOrdreChansons();
     } catch (err) {
         console.error("[Firebase] Erreur publication chanson :", err.code, err.message);
         afficherNotification("Erreur lors de la sauvegarde de la chanson.", "error");
@@ -809,6 +931,8 @@ document.getElementById("chansons-liste").addEventListener("click", e => {
     const btn = e.target.closest("[data-action]");
     if (!btn) return;
     if (btn.dataset.action === "supprimer-chanson") supprimerChanson(Number(btn.dataset.id));
+    if (btn.dataset.action === "move-up") deplacerChansonParOffset(Number(btn.dataset.id), -1);
+    if (btn.dataset.action === "move-down") deplacerChansonParOffset(Number(btn.dataset.id), 1);
     if (btn.dataset.action === "play-chanson") {
         const idx = chansons.findIndex(c => String(c.id) === String(btn.dataset.id));
         if (idx !== -1) {
@@ -816,6 +940,57 @@ document.getElementById("chansons-liste").addEventListener("click", e => {
             else globalPlayer.jouer(idx);
         }
     }
+});
+
+document.getElementById("chansons-liste").addEventListener("dragstart", e => {
+    const card = e.target.closest(".chanson-card");
+    if (!card || !utilisateurPeutReordonner()) return;
+    reorderState.draggedId = card.dataset.id;
+    card.classList.add("dragging");
+    if (e.dataTransfer) {
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", card.dataset.id);
+    }
+});
+
+document.getElementById("chansons-liste").addEventListener("dragover", e => {
+    const card = e.target.closest(".chanson-card");
+    if (!card || !utilisateurPeutReordonner() || !reorderState.draggedId) return;
+    if (card.dataset.id === reorderState.draggedId) return;
+    e.preventDefault();
+
+    nettoyerStylesDrop();
+    const rect = card.getBoundingClientRect();
+    const dropAfter = (e.clientY - rect.top) > rect.height / 2;
+    card.classList.add(dropAfter ? "drop-after" : "drop-before");
+});
+
+document.getElementById("chansons-liste").addEventListener("drop", e => {
+    const card = e.target.closest(".chanson-card");
+    if (!card || !utilisateurPeutReordonner() || !reorderState.draggedId) return;
+    e.preventDefault();
+    const rect = card.getBoundingClientRect();
+    const dropAfter = (e.clientY - rect.top) > rect.height / 2;
+    deplacerChanson(reorderState.draggedId, card.dataset.id, dropAfter);
+    reorderState.draggedId = null;
+    nettoyerStylesDrop();
+});
+
+document.getElementById("chansons-liste").addEventListener("dragend", () => {
+    reorderState.draggedId = null;
+    nettoyerStylesDrop();
+    document.querySelectorAll(".chanson-card.dragging").forEach(el => el.classList.remove("dragging"));
+});
+
+document.getElementById("btn-reset-ordre").addEventListener("click", async () => {
+    if (!utilisateurPeutReordonner()) {
+        afficherNotification("Connexion avec token requise pour reordonner.", "error");
+        return;
+    }
+    chansons.sort((a, b) => b.id - a.id);
+    normaliserOrdreChansons();
+    afficherChansons();
+    await sauvegarderOrdreChansons();
 });
 
 document.getElementById("avis-liste").addEventListener("click", e => {
@@ -882,4 +1057,5 @@ document.querySelector(".hero-cta").addEventListener("click", e => {
     mettreAJourSelectChansons();
     afficherChansons();
     afficherAvis();
+    mettreAJourHintReorder();
 })();
